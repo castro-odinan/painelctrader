@@ -330,9 +330,9 @@ function renderMonth() {
   if (monthSummary) {
     const resultClass = monthSummary.resultado >= 0 ? 'positive' : 'negative';
     els.summaryBox.innerHTML = `
-      <div><b>SALDO INÍCIO DO MÊS (trading):</b> ${fmt2(monthSummary.saldoInicial)}</div>
-      <div><b>RESULTADO REAL DO MÊS (trades):</b> <span class="value ${resultClass}">${fmt2(monthSummary.resultado)} | ${fmtPct(monthSummary.perc)}</span></div>
-      <div><b>SALDO FINAL (trading):</b> ${fmt2(monthSummary.saldoFinal)}</div>
+      <div><b>SALDO INICIAL DO MÊS:</b> ${fmt2(monthSummary.saldoInicial)}</div>
+      <div><b>RESULTADO DO MÊS:</b> <span class="value ${resultClass}">${fmt2(monthSummary.resultado)} | ${fmtPct(monthSummary.perc)}</span></div>
+      <div><b>SALDO FINAL DO MÊS:</b> ${fmt2(monthSummary.saldoFinal)}</div>
       <div style="font-size:12px; color:#aaa; margin-top:4px;">⚠️ Depósitos/saques não afetam estes números</div>
     `;
   } else {
