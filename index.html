@@ -70,6 +70,7 @@ th{color:#d4cc57;background:#111}
       <select id="symbolFilter"><option value="">Símbolo: todos</option></select>
       <select id="channelFilter"><option value="">Canal: todos</option></select>
       <select id="labelFilter"><option value="">Label: todos</option></select>
+      <button class="btn" id="clearFiltersBtn">Limpar filtro</button>
     </div>
     <div class="title-row">
       <div class="month-title"><span id="yearText"></span> <span id="monthText"></span></div>
@@ -248,11 +249,15 @@ function refillFilter(select, label, values) {
     select.appendChild(opt);
   });
   if (values.includes(current)) select.value = current;
+  else select.value = '';
 }
 function refillAllFilters() {
-  refillFilter(els.symbolFilter, 'Símbolo', uniqueValues(allTrades, 'symbol'));
-  refillFilter(els.channelFilter, 'Canal', uniqueValues(allTrades, 'channel'));
-  refillFilter(els.labelFilter, 'Label', uniqueValues(allTrades, 'label'));
+  const y = currentDate.getFullYear();
+  const m = currentDate.getMonth();
+  const monthTrades = allTrades.filter(t => t.closingYear === y && t.closingMonth === m + 1);
+  refillFilter(els.symbolFilter, 'Símbolo', uniqueValues(monthTrades, 'symbol'));
+  refillFilter(els.channelFilter, 'Canal', uniqueValues(monthTrades, 'channel'));
+  refillFilter(els.labelFilter, 'Label', uniqueValues(monthTrades, 'label'));
 }
 function applyFilters() {
   return allTrades.filter(t => {
@@ -432,20 +437,29 @@ function openDay(key, trades, dayInfo) {
 function initEvents() {
   document.getElementById('prevMonth').addEventListener('click', () => {
     currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    refillAllFilters();
     renderMonth();
   });
   document.getElementById('nextMonth').addEventListener('click', () => {
     currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    refillAllFilters();
     renderMonth();
   });
   document.getElementById('currentMonthBtn').addEventListener('click', () => {
     const now = new Date();
     currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    refillAllFilters();
     renderMonth();
   });
   document.getElementById('backBtn').addEventListener('click', () => {
     els.dayView.classList.add('hidden');
     els.monthView.classList.remove('hidden');
+  });
+  document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+    els.symbolFilter.value = '';
+    els.channelFilter.value = '';
+    els.labelFilter.value = '';
+    renderMonth();
   });
   [els.symbolFilter, els.channelFilter, els.labelFilter].forEach(el => {
     el.addEventListener('change', () => {
