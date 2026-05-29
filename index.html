@@ -249,34 +249,53 @@ function refillFilter(select, label, values) {
     opt.textContent = v;
     select.appendChild(opt);
   });
-  if (values.includes(current)) select.value = current;
+  if (values.includes(current)) {
+    select.value = current;
+  } else {
+    select.value = ""; 
+  }
 }
 
-// NOVA FUNÇÃO REFILL ALL FILTERS (LÓGICA EM CASCATA)
+// CORREÇÃO DA FUNÇÃO: Agora ela valida a existência antes de calcular a cascata
 function refillAllFilters() {
+  const y = currentDate.getFullYear();
+  const m = currentDate.getMonth();
+  
+  // 1. Isolar os dados puros do mês ativo
+  const monthTrades = allTrades.filter(t => t.closingYear === y && t.closingMonth === m + 1);
+
+  // 2. PRÉ-VALIDAÇÃO: Verificar se as seleções antigas de fato existem neste novo mês.
+  // Se não existirem, limpamos IMEDIATAMENTE para não quebrar os cálculos em cascata.
+  const validSymbols = uniqueValues(monthTrades, 'symbol');
+  const validChannels = uniqueValues(monthTrades, 'channel');
+  const validLabels = uniqueValues(monthTrades, 'label');
+
+  if (!validSymbols.includes(els.symbolFilter.value)) els.symbolFilter.value = "";
+  if (!validChannels.includes(els.channelFilter.value)) els.channelFilter.value = "";
+  if (!validLabels.includes(els.labelFilter.value)) els.labelFilter.value = "";
+
+  // 3. Obter os filtros atuais (já limpos/validados)
   const currentSymbol = els.symbolFilter.value;
   const currentChannel = els.channelFilter.value;
   const currentLabel = els.labelFilter.value;
 
-  // Filtra as opções disponíveis para o Símbolo (ignorando o próprio filtro de Símbolo)
-  const dataForSymbol = allTrades.filter(t => 
+  // 4. Calcular os cruzamentos corretos para as listagens
+  const dataForSymbol = monthTrades.filter(t => 
     (!currentChannel || t.channel === currentChannel) && 
     (!currentLabel || t.label === currentLabel)
   );
   
-  // Filtra as opções disponíveis para o Canal (ignorando o próprio filtro de Canal)
-  const dataForChannel = allTrades.filter(t => 
+  const dataForChannel = monthTrades.filter(t => 
     (!currentSymbol || t.symbol === currentSymbol) && 
     (!currentLabel || t.label === currentLabel)
   );
 
-  // Filtra as opções disponíveis para a Label (ignorando o próprio filtro de Label)
-  const dataForLabel = allTrades.filter(t => 
+  const dataForLabel = monthTrades.filter(t => 
     (!currentSymbol || t.symbol === currentSymbol) && 
     (!currentChannel || t.channel === currentChannel)
   );
 
-  // Atualiza os dropdowns com as novas listas restritas
+  // 5. Atualizar os dropdowns com os valores reais do mês atualizado
   refillFilter(els.symbolFilter, 'Símbolo', uniqueValues(dataForSymbol, 'symbol'));
   refillFilter(els.channelFilter, 'Canal', uniqueValues(dataForChannel, 'channel'));
   refillFilter(els.labelFilter, 'Label', uniqueValues(dataForLabel, 'label'));
@@ -362,7 +381,7 @@ function renderMonth() {
       <div><b>SALDO INICIAL DO MÊS:</b> ${fmt2(monthSummary.saldoInicial)}</div>
       <div><b>RESULTADO DO MÊS:</b> <span class="value ${resultClass}">${fmt2(monthSummary.resultado)} | ${fmtPct(monthSummary.perc)}</span></div>
       <div><b>SALDO FINAL DO MÊS:</b> ${fmt2(monthSummary.saldoFinal)}</div>
-      <div style="font-size:12px; color:#aaa; margin-top:4px;">⚠️ Depósitos/saques não afetam estes números</div>
+      <div style="font-size:12px; color:#aaa; margin-top:4px;">⚠️ Depósitos e/ou saques não afetam estes valores</div>
     `;
   } else {
     els.summaryBox.innerHTML = `<div class="muted"><b>SEM DADOS</b> para os filtros e mês selecionados.</div>`;
@@ -451,7 +470,7 @@ function openDay(key, trades, dayInfo) {
       <td class="num ${t.gross >= 0 ? 'pos' : 'neg'}">${fmt2(t.gross)}</td>
       <td class="num ${t.net >= 0 ? 'pos' : 'neg'}">${fmt2(t.net)}</td>
       <td class="num">${fmt2(t.balance)}</td>
-    </table>`;
+    </tr>`;
   }).join('');
   
   els.monthView.classList.add('hidden');
@@ -461,17 +480,21 @@ function openDay(key, trades, dayInfo) {
 function initEvents() {
   document.getElementById('prevMonth').addEventListener('click', () => {
     currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    refillAllFilters();
     renderMonth();
   });
   document.getElementById('nextMonth').addEventListener('click', () => {
     currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    refillAllFilters();
     renderMonth();
   });
   document.getElementById('currentMonthBtn').addEventListener('click', () => {
     const now = new Date();
     currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    refillAllFilters();
     renderMonth();
   });
+  
   document.getElementById('clearFiltersBtn').addEventListener('click', () => {
     els.symbolFilter.value = '';
     els.channelFilter.value = '';
@@ -483,17 +506,16 @@ function initEvents() {
     els.dayView.classList.add('hidden');
     els.monthView.classList.remove('hidden');
   });
-
-  // AQUI FOI ADICIONADA A CHAMADA DO REFILLALLFILTERS NO EVENTO DE CHANGE
+  
   [els.symbolFilter, els.channelFilter, els.labelFilter].forEach(el => {
     el.addEventListener('change', () => {
-      refillAllFilters(); 
+      refillAllFilters();
       els.dayView.classList.add('hidden');
       els.monthView.classList.remove('hidden');
       renderMonth();
     });
   });
-
+  
   const fileInput = document.getElementById('excelUpload');
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length) handleExcelUpload(e.target.files[0]);
