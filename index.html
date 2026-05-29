@@ -239,6 +239,7 @@ function handleExcelUpload(file) {
 function uniqueValues(arr, key) {
   return [...new Set(arr.map(x => x[key]).filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b)));
 }
+
 function refillFilter(select, label, values) {
   const current = select.value;
   select.innerHTML = `<option value="">${label}: todos</option>`;
@@ -249,16 +250,38 @@ function refillFilter(select, label, values) {
     select.appendChild(opt);
   });
   if (values.includes(current)) select.value = current;
-  else select.value = '';
 }
+
+// NOVA FUNÇÃO REFILL ALL FILTERS (LÓGICA EM CASCATA)
 function refillAllFilters() {
-  const y = currentDate.getFullYear();
-  const m = currentDate.getMonth();
-  const monthTrades = allTrades.filter(t => t.closingYear === y && t.closingMonth === m + 1);
-  refillFilter(els.symbolFilter, 'Símbolo', uniqueValues(monthTrades, 'symbol'));
-  refillFilter(els.channelFilter, 'Canal', uniqueValues(monthTrades, 'channel'));
-  refillFilter(els.labelFilter, 'Label', uniqueValues(monthTrades, 'label'));
+  const currentSymbol = els.symbolFilter.value;
+  const currentChannel = els.channelFilter.value;
+  const currentLabel = els.labelFilter.value;
+
+  // Filtra as opções disponíveis para o Símbolo (ignorando o próprio filtro de Símbolo)
+  const dataForSymbol = allTrades.filter(t => 
+    (!currentChannel || t.channel === currentChannel) && 
+    (!currentLabel || t.label === currentLabel)
+  );
+  
+  // Filtra as opções disponíveis para o Canal (ignorando o próprio filtro de Canal)
+  const dataForChannel = allTrades.filter(t => 
+    (!currentSymbol || t.symbol === currentSymbol) && 
+    (!currentLabel || t.label === currentLabel)
+  );
+
+  // Filtra as opções disponíveis para a Label (ignorando o próprio filtro de Label)
+  const dataForLabel = allTrades.filter(t => 
+    (!currentSymbol || t.symbol === currentSymbol) && 
+    (!currentChannel || t.channel === currentChannel)
+  );
+
+  // Atualiza os dropdowns com as novas listas restritas
+  refillFilter(els.symbolFilter, 'Símbolo', uniqueValues(dataForSymbol, 'symbol'));
+  refillFilter(els.channelFilter, 'Canal', uniqueValues(dataForChannel, 'channel'));
+  refillFilter(els.labelFilter, 'Label', uniqueValues(dataForLabel, 'label'));
 }
+
 function applyFilters() {
   return allTrades.filter(t => {
     if (els.symbolFilter.value && t.symbol !== els.symbolFilter.value) return false;
@@ -267,6 +290,7 @@ function applyFilters() {
     return true;
   });
 }
+
 function getMonthTrades(y, m) {
   return applyFilters().filter(t => t.closingYear === y && t.closingMonth === m+1)
                       .sort((a,b) => a.closingTime - b.closingTime);
@@ -437,17 +461,21 @@ function openDay(key, trades, dayInfo) {
 function initEvents() {
   document.getElementById('prevMonth').addEventListener('click', () => {
     currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    refillAllFilters();
     renderMonth();
   });
   document.getElementById('nextMonth').addEventListener('click', () => {
     currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-    refillAllFilters();
     renderMonth();
   });
   document.getElementById('currentMonthBtn').addEventListener('click', () => {
     const now = new Date();
     currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    renderMonth();
+  });
+  document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+    els.symbolFilter.value = '';
+    els.channelFilter.value = '';
+    els.labelFilter.value = '';
     refillAllFilters();
     renderMonth();
   });
@@ -455,19 +483,17 @@ function initEvents() {
     els.dayView.classList.add('hidden');
     els.monthView.classList.remove('hidden');
   });
-  document.getElementById('clearFiltersBtn').addEventListener('click', () => {
-    els.symbolFilter.value = '';
-    els.channelFilter.value = '';
-    els.labelFilter.value = '';
-    renderMonth();
-  });
+
+  // AQUI FOI ADICIONADA A CHAMADA DO REFILLALLFILTERS NO EVENTO DE CHANGE
   [els.symbolFilter, els.channelFilter, els.labelFilter].forEach(el => {
     el.addEventListener('change', () => {
+      refillAllFilters(); 
       els.dayView.classList.add('hidden');
       els.monthView.classList.remove('hidden');
       renderMonth();
     });
   });
+
   const fileInput = document.getElementById('excelUpload');
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length) handleExcelUpload(e.target.files[0]);
